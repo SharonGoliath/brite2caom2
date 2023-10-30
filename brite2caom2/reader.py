@@ -83,13 +83,12 @@ class BriteMetaDataReader(rdc.MetadataReader):
     DB 01-02-2021
     BRITE files are all ascii csv files.
 
-    The _retrieve_file_info method makes sense as it. The _retrieve_header
-    method does not make sense from a name point of view, but there is still
-    an access for metadata and data retrieval.
+    The _retrieve_file_info method makes sense as is. The _retrieve_header method does not make sense from a name
+    point of view, but there is still an access for metadata and data retrieval.
 
     A single Observation relies on the existence of five files with different extensions. Ensure those five files
-    exist before ingestion, since the metadata from one file applies to all files, and successful preview generation
-    relies on the content of two other files.
+    exist before ingestion, since the metadata from one file (.orig) applies to all files, and successful preview
+    generation relies on the content of two other files (.avedb, .ndatdb).
     """
     comment_char = '#'
 

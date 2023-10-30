@@ -67,15 +67,13 @@
 #
 
 """
-This module implements the ObsBlueprint mapping, as well as the workflow 
-entry point that executes the workflow.
+This module implements the ObsBlueprint mapping, as well as the workflow entry point that executes the workflow.
 """
 
 from astropy.coordinates import SkyCoord
 from caom2 import DataProductType, CalibrationLevel, ProductType, ReleaseType
 from caom2pipe import caom_composable as cc
 from caom2pipe.manage_composable import CadcException, to_float
-from caom2utils.caom2blueprint import update_artifact_meta
 from datetime import datetime
 
 from brite2caom2.storage_name import get_entry, BriteName
@@ -247,8 +245,6 @@ class BriteUndecorrelatedMapping(BriteMapping):
         bp.set('Chunk.energy.axis.range.start.val', lower_wl * 10e-7)
         bp.set('Chunk.energy.axis.range.end.pix', 1.5)
         bp.set('Chunk.energy.axis.range.end.val', upper_wl * 10e-7)
-        # this is to avoid a FITS ValueError _only_
-        bp.set('Chunk.energy.axis.function.naxis', 1)
 
         bp.configure_time_axis(4)
         bp.set('Chunk.time.exposure', float(self._md_ptr.get('ObsExpoT')) / 1000.0)  # seconds
@@ -258,8 +254,7 @@ class BriteUndecorrelatedMapping(BriteMapping):
         bp.set('Chunk.time.axis.range.start.val', '_get_time_axis_range_start_val()')
         bp.set('Chunk.time.axis.range.end.pix', 1.5)
         bp.set('Chunk.time.axis.range.end.val', '_get_time_axis_range_end_val()')
-        # this is to avoid a FITS ValueError _only_
-        bp.set('Chunk.time.axis.function.naxis', 1)
+        bp.set('Chunk.time.timesys', 'UTC')
         self._logger.debug('Done accumulate_blueprint.')
 
     def _get_time_axis_range_end_val(self, ext):
@@ -278,15 +273,6 @@ class BriteUndecorrelatedMapping(BriteMapping):
                 chunk.position_axis_2 = None
                 chunk.energy_axis = None
                 chunk.time_axis = None
-                # using range for BRITE-Constellation
-                if chunk.time is not None and chunk.time.axis is not None and chunk.time.axis.function is not None:
-                    chunk.time.axis.function = None
-                if (
-                    chunk.energy is not None
-                    and chunk.energy.axis is not None
-                    and chunk.energy.axis.function is not None
-                ):
-                    chunk.energy.axis.function = None
         self._logger.debug('End _update_artifact')
 
 
@@ -322,7 +308,7 @@ def mapping_factory(storage_name, metadata_reader, clients, observable, observat
             result = BriteDecorrelatedMapping(storage_name, metadata_reader, clients, observable, observation, config)
         else:
             result = BriteMapping(storage_name, metadata_reader, clients, observable, observation, config)
-        logger.debug(f'Created an instance of {type(result)} for {storage_name.file_uri}')
+        logger.debug(f'Created an instance of {result.__class__.__name__} for {storage_name.file_uri}')
     else:
         logger.debug(f'Not archiving {storage_name.file_name}.')
         result = None

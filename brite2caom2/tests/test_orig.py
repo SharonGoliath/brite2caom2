@@ -2,7 +2,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2023.                            (c) 2023.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -61,68 +61,41 @@
 #  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
 #                                       <http://www.gnu.org/licenses/>.
 #
-#  : 4 $
+#  Revision: 4
 #
 # ***********************************************************************
 #
 
+from brite2caom2.fits2caom2_augmentation import visit
+from brite2caom2.reader import BriteFileMetadataReader
+from brite2caom2.storage_name import BriteName
+from caom2.diff import get_differences
+from caom2pipe.manage_composable import read_obs_from_file, write_obs_to_file
 
-from caom2 import Part
-from caom2utils import caom2blueprint
-from caom2pipe import caom_composable as cc
-from brite2caom2 import main_app
-
-
-__all__ = ['BriteFits2caom2Visitor']
-
-
-class DatParser(caom2blueprint.FitsParser):
-    """
-    Extend from FitsParser so that, with a properly configured blueprint,
-    from BriteUndecorrelatedMapping, the behaviour of the method apply_blueprint will build
-    up a valid FITS header.
-    """
-
-    def __init__(self, headers, blueprint, uri):
-        super().__init__(headers, blueprint, uri)
-
-    @property
-    def headers(self):
-        return self._headers
-
-    def ignore_chunks(self, artifact, index):
-        if str(index) not in artifact.parts.keys():
-            artifact.parts.add(Part(str(index)))
-            self.logger.debug(f'Part created for HDU {index}.')
-        self._wcs_parser = caom2blueprint.FitsWcsParser(self.headers[index], self.uri, index)
-        # False => rely on the blueprint content to fill the WCS values, so there is always chunk information.
-        return False
+from helpers import set_release_date_values
+from mock import patch
 
 
-class BriteFits2caom2Visitor(cc.Fits2caom2Visitor):
-    def __init__(self, observation, **kwargs):
-        super().__init__(observation, **kwargs)
-
-    def _get_parser(self, headers, blueprint, uri):
-        result = None
-        if self._storage_name.has_undecorrelated_metadata or self._storage_name.has_decorrelated_metadata:
-            result =  DatParser(headers, blueprint, uri)
-        else:
-            result =  caom2blueprint.BlueprintParser(blueprint, uri)
-        self._logger.debug(f'Created {result.__class__.__name__} Parser')
-        return result
-
-    def _get_mapping(self, headers):
-        return main_app.mapping_factory(
-            self._storage_name,
-            self._metadata_reader,
-            self._clients,
-            self._observable,
-            self._observation,
-            self._config,
-            self._logger,
-        )
-
-
-def visit(observation, **kwargs):
-    return BriteFits2caom2Visitor(observation, **kwargs).visit()
+@patch('caom2pipe.client_composable.ClientCollection')
+def test_orig(clients_mock, test_data_dir, test_config):
+    test_f_name = 'HD36486_65-Ori-VIII-2021_BAb_1_5_A.orig'
+    expected_fqn = f'{test_data_dir}/orig/{test_f_name}.expected.xml'
+    actual_fqn = expected_fqn.replace('expected', 'actual')
+    expected = read_obs_from_file(expected_fqn)
+    storage_name = BriteName(entry=f'{test_data_dir}/HD36486/{test_f_name}')
+    metadata_reader = BriteFileMetadataReader()
+    metadata_reader.set(storage_name)
+    kwargs = {
+        'storage_name': storage_name,
+        'metadata_reader': metadata_reader,
+        'clients': clients_mock,
+        'config': test_config,
+    }
+    observation = visit(None, **kwargs)
+    set_release_date_values(observation)
+    compare_result = get_differences(expected, observation)
+    if compare_result is not None:
+        write_obs_to_file(observation, actual_fqn)
+        compare_text = '\n'.join([r for r in compare_result])
+        msg = f'Differences found in planes {storage_name.product_id}\n{compare_text}'
+        raise AssertionError(msg)

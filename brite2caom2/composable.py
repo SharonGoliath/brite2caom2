@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -68,8 +67,7 @@
 #
 
 """
-Implements the default entry point functions for the workflow 
-application.
+Implements the default entry point functions for the workflow application.
 
 'run' executes based on either provided lists of work, or files on disk.
 'run_incremental' executes incrementally, usually based on time-boxed
@@ -186,14 +184,8 @@ def _run():
         result |= runner.run_retry()
         runner.report()
     else:
-        result = run_by_todo(
-            config=config,
-            name_builder=builder,
-            meta_visitors=[],
-            data_visitors=META_VISITORS,  # because there's no fhead for text files
-            clients=clients,
-            metadata_reader=metadata_reader,
-        )
+        logging.error(f'This application only works when "use_local_files" is set to True.')
+        result = -1
     return result
 
 

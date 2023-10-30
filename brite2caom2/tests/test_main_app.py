@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -66,17 +65,18 @@
 #
 # ***********************************************************************
 #
+
 import brite2caom2.storage_name
 from brite2caom2 import fits2caom2_augmentation
 from caom2.diff import get_differences
 from caom2pipe.caom_composable import get_all_artifact_keys
 from caom2pipe import manage_composable as mc
 from brite2caom2 import reader
-from datetime import datetime
 
 import glob
 import os
 
+from helpers import set_release_date_values
 from mock import patch
 
 
@@ -122,7 +122,7 @@ def test_main_app(clients_mock, test_name, test_config):
             # make sure future test runs start with a non-existent observation
             os.unlink(in_fqn)
         try:
-            _set_release_date_values(observation)
+            set_release_date_values(observation)
             compare_result = get_differences(expected, observation)
         except Exception as e:
             mc.write_obs_to_file(observation, actual_fqn)
@@ -135,13 +135,3 @@ def test_main_app(clients_mock, test_name, test_config):
     else:
         mc.write_obs_to_file(observation, in_fqn)
     # assert False  # cause I want to see logging messages
-
-
-def _set_release_date_values(observation):
-    # the release date is "the time at which the file is received at CADC", which is random, and therfore hard to
-    # test with, so over-ride with a known value before doing the comparison to the expected value
-    release_date = datetime.strptime('2022-10-26T20:28:35.155000', '%Y-%m-%dT%H:%M:%S.%f')
-    observation.meta_release = release_date
-    for plane in observation.planes.values():
-        plane.meta_release = release_date
-        plane.data_release = release_date

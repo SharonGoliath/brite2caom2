@@ -67,6 +67,7 @@
 # ***********************************************************************
 #
 
+from os.path import dirname, join, realpath
 from caom2pipe.manage_composable import Config, StorageName
 import pytest
 
@@ -75,7 +76,7 @@ SCHEME = 'cadc'
 PREVIEW_SCHEME = 'cadc'
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_config():
     config = Config()
     config.collection = COLLECTION
@@ -86,3 +87,10 @@ def test_config():
     StorageName.preview_scheme = config.preview_scheme
     StorageName.scheme = config.scheme
     return config
+
+
+@pytest.fixture
+def test_data_dir():
+    this_dir = dirname(realpath(__file__))
+    fqn = join(this_dir, "data")
+    return fqn
