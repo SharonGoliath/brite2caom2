@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -76,19 +75,18 @@ from caom2pipe import manage_composable as mc
 import brite2caom2.storage_name
 from brite2caom2 import preview_augmentation, reader
 from mock import Mock, patch
-import test_main_app
 
 
 def pytest_generate_tests(metafunc):
-    obs_id_list = [ii for ii in glob.glob(f'{test_main_app.TEST_DATA_DIR}/*') if '.expected.xml' in ii]
+    obs_id_list = [ii for ii in glob.glob(f'{metafunc.config.invocation_dir}/data/*') if '.expected.xml' in ii]
     metafunc.parametrize('test_name', obs_id_list)
 
 
 @patch('caom2pipe.client_composable.ClientCollection')
-def test_preview_visit(clients_mock, test_name, test_config):
+def test_preview_visit(clients_mock, test_name, test_data_dir, test_config):
     obs_id = basename(test_name).replace('.expected.xml', '')
     dir_name = obs_id.split('_')[0]
-    rlog_fqn = f'{test_main_app.TEST_DATA_DIR}/{dir_name}/{obs_id}.rlogdb'
+    rlog_fqn = f'{test_data_dir}/{dir_name}/{obs_id}.rlogdb'
     metadata_reader = reader.BriteFileMetadataReader()
     test_obs = mc.read_obs_from_file(test_name)
     # pre-condition
@@ -97,7 +95,7 @@ def test_preview_visit(clients_mock, test_name, test_config):
     test_storage_name = brite2caom2.storage_name.BriteName(rlog_fqn)
     metadata_reader.set(test_storage_name)
     kwargs = {
-        'working_directory': test_main_app.TEST_DATA_DIR,
+        'working_directory': test_data_dir,
         'cadc_client': None,
         'metadata_reader': metadata_reader,
         'observable': Mock(),

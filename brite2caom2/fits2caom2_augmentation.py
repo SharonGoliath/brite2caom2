@@ -68,7 +68,8 @@
 
 
 from caom2 import Part
-from caom2utils import caom2blueprint
+from caom2utils.parsers import BlueprintParser, FitsParser
+from caom2utils.wcs_parsers import FitsWcsParser
 from caom2pipe import caom_composable as cc
 from brite2caom2 import main_app
 
@@ -76,7 +77,7 @@ from brite2caom2 import main_app
 __all__ = ['BriteFits2caom2Visitor']
 
 
-class DatParser(caom2blueprint.FitsParser):
+class DatParser(FitsParser):
     """
     Extend from FitsParser so that, with a properly configured blueprint,
     from BriteUndecorrelatedMapping, the behaviour of the method apply_blueprint will build
@@ -90,13 +91,13 @@ class DatParser(caom2blueprint.FitsParser):
     def headers(self):
         return self._headers
 
-    def ignore_chunks(self, artifact, index):
+    def add_parts(self, artifact, index):
         if str(index) not in artifact.parts.keys():
             artifact.parts.add(Part(str(index)))
             self.logger.debug(f'Part created for HDU {index}.')
-        self._wcs_parser = caom2blueprint.FitsWcsParser(self.headers[index], self.uri, index)
-        # False => rely on the blueprint content to fill the WCS values, so there is always chunk information.
-        return False
+        self._wcs_parser = FitsWcsParser(self.headers[index], self.uri, index)
+        # True => rely on the blueprint content to fill the WCS values, so there is always chunk information.
+        return True
 
 
 class BriteFits2caom2Visitor(cc.Fits2caom2Visitor):
@@ -108,11 +109,11 @@ class BriteFits2caom2Visitor(cc.Fits2caom2Visitor):
         if self._storage_name.has_undecorrelated_metadata or self._storage_name.has_decorrelated_metadata:
             result =  DatParser(headers, blueprint, uri)
         else:
-            result =  caom2blueprint.BlueprintParser(blueprint, uri)
+            result =  BlueprintParser(blueprint, uri)
         self._logger.debug(f'Created {result.__class__.__name__} Parser')
         return result
 
-    def _get_mapping(self, headers):
+    def _get_mapping(self, headers, _):
         return main_app.mapping_factory(
             self._storage_name,
             self._metadata_reader,

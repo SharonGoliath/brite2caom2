@@ -81,7 +81,7 @@ import traceback
 from caom2pipe.client_composable import ClientCollection
 from caom2pipe.manage_composable import Config, StorageName
 from caom2pipe.name_builder_composable import EntryBuilder
-from caom2pipe.run_composable import common_runner_init, run_by_state, run_by_todo, TodoRunner
+from caom2pipe.run_composable import common_runner_init, run_by_state, TodoRunner
 from caom2pipe.transfer_composable import modify_transfer_factory, store_transfer_factory
 
 from brite2caom2 import data_source, reader, storage_name

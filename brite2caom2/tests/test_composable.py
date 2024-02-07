@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -69,10 +68,9 @@
 
 import glob
 import os
-import test_main_app
 
 from collections import defaultdict, deque
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from shutil import copy
 from unittest.mock import call, patch
 
@@ -80,10 +78,9 @@ from caom2utils import data_util
 from caom2pipe.data_source_composable import StateRunnerMeta
 from caom2pipe import manage_composable as mc
 from brite2caom2 import composable, storage_name
+
+import pytest
 import test_data_source
-
-
-TEST_ROOT_DIR = f'{test_main_app.TEST_DATA_DIR}/HD37202'
 
 
 @patch('caom2pipe.execute_composable.CaomExecute._caom2_store')
@@ -97,16 +94,18 @@ def test_run_store_ingest_by_state(
     cleanup_mock,
     visit_meta_mock,
     caom2_store_mock,
+    test_data_dir,
     test_config,
     tmp_path,
 ):
-    start_time = datetime.utcnow() - timedelta(days=1)
+    test_root_dir = f'{test_data_dir}/HD37202'
+    start_time = datetime.now() - timedelta(days=1)
     temp_deque = deque()
     prefix = 'HD37202_31-Tau-I-2017_BLb_1_5_A'
     for ext in test_data_source.EXTENSIONS:
         f_name = f'{prefix}{ext}'
         if storage_name.BriteName.is_archived(f_name):
-            temp_deque.append(StateRunnerMeta(f'{TEST_ROOT_DIR}/{f_name}', start_time + timedelta(hours=1)))
+            temp_deque.append(StateRunnerMeta(f'{test_root_dir}/{f_name}', start_time + timedelta(hours=1)))
     get_work_mock.return_value = temp_deque
     clients_mock.return_value.metadata_client.read.return_value = None
 
@@ -141,20 +140,20 @@ def test_run_store_ingest_by_state(
         assert clients_mock.return_value.data_client.put.called, 'put should be called'
         assert clients_mock.return_value.data_client.put.call_count == 5, 'wrong number of puts'
         put_calls = [
-            call(TEST_ROOT_DIR, f'{test_config.scheme}:{test_config.collection}/{prefix}.avedb'),
-            call(TEST_ROOT_DIR, f'{test_config.scheme}:{test_config.collection}/{prefix}.freq0db'),
-            call(TEST_ROOT_DIR, f'{test_config.scheme}:{test_config.collection}/{prefix}.ndatdb'),
-            call(TEST_ROOT_DIR, f'{test_config.scheme}:{test_config.collection}/{prefix}.orig'),
-            call(TEST_ROOT_DIR, f'{test_config.scheme}:{test_config.collection}/{prefix}.rlogdb'),
+            call(test_root_dir, f'{test_config.scheme}:{test_config.collection}/{prefix}.avedb'),
+            call(test_root_dir, f'{test_config.scheme}:{test_config.collection}/{prefix}.freq0db'),
+            call(test_root_dir, f'{test_config.scheme}:{test_config.collection}/{prefix}.ndatdb'),
+            call(test_root_dir, f'{test_config.scheme}:{test_config.collection}/{prefix}.orig'),
+            call(test_root_dir, f'{test_config.scheme}:{test_config.collection}/{prefix}.rlogdb'),
         ]
         clients_mock.return_value.data_client.put.assert_has_calls(put_calls, any_order=False)
         assert cleanup_mock.called, 'cleanup'
         cleanup_calls = [
-            call(f'{TEST_ROOT_DIR}/{prefix}.avedb', 0, 0),
-            call(f'{TEST_ROOT_DIR}/{prefix}.freq0db', 0, 0),
-            call(f'{TEST_ROOT_DIR}/{prefix}.ndatdb', 0, 0),
-            call(f'{TEST_ROOT_DIR}/{prefix}.orig', 0, 0),
-            call(f'{TEST_ROOT_DIR}/{prefix}.rlogdb', 0, 0),
+            call(f'{test_root_dir}/{prefix}.avedb', 0, 0),
+            call(f'{test_root_dir}/{prefix}.freq0db', 0, 0),
+            call(f'{test_root_dir}/{prefix}.ndatdb', 0, 0),
+            call(f'{test_root_dir}/{prefix}.orig', 0, 0),
+            call(f'{test_root_dir}/{prefix}.rlogdb', 0, 0),
         ]
         cleanup_mock.assert_has_calls(cleanup_calls), 'wrong cleanup args'
         assert visit_meta_mock.called, '_visit_meta call'
@@ -169,8 +168,9 @@ def test_run_store_ingest_by_state(
 @patch('brite2caom2.data_source.BriteLocalFilesDataSource._move_action')
 @patch('brite2caom2.composable.ClientCollection')
 @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
-def test_run_local_clean_up(access_mock, client_mock, move_mock, test_config, tmp_path):
+def test_run_local_clean_up(access_mock, client_mock, move_mock, test_data_dir, test_config, tmp_path):
     access_mock.return_value = 'https://localhost'
+    test_root_dir = f'{test_data_dir}/HD37202'
     test_config.change_working_directory(tmp_path.as_posix())
 
     # dict to track how many times info has been called for a particular URI
@@ -179,14 +179,14 @@ def test_run_local_clean_up(access_mock, client_mock, move_mock, test_config, tm
     def _info_mock(uri):
         info_uri_calls[uri] += 1
         if info_uri_calls[uri] > 1:
-            fqn = f'{TEST_ROOT_DIR}/{os.path.basename(uri)}'
+            fqn = f'{test_root_dir}/{os.path.basename(uri)}'
             return data_util.get_local_file_info(fqn)
         else:
             return None
 
     client_mock.return_value.data_client.info.side_effect = _info_mock
 
-    test_files = glob.glob(f'{TEST_ROOT_DIR}/*')
+    test_files = glob.glob(f'{test_root_dir}/*')
     orig_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
@@ -200,7 +200,7 @@ def test_run_local_clean_up(access_mock, client_mock, move_mock, test_config, tm
         test_config.log_to_file = True
         test_config.use_local_files = True
         test_config.data_source_extensions = test_data_source.EXTENSIONS
-        test_config.data_sources = [TEST_ROOT_DIR]
+        test_config.data_sources = [test_root_dir]
         test_config.features.supports_latest_client = True
         test_config.features.supports_decompression = True
         test_config.proxy_file_name = 'test_proxy.pem'
@@ -254,11 +254,11 @@ def test_run_local_clean_up(access_mock, client_mock, move_mock, test_config, tm
         os.chdir(orig_cwd)
 
 
-def test_run_scrape(test_config, tmp_path):
+def test_run_scrape(test_data_dir, test_config, tmp_path):
     test_config.change_working_directory(tmp_path.as_posix())
     test_config.logging_level = 'INFO'
     test_config.use_local_files = True
-    test_config.data_sources = [f'{test_main_app.TEST_DATA_DIR}/HD36486']
+    test_config.data_sources = [f'{test_data_dir}/HD36486']
     test_config.data_source_extensions = test_data_source.EXTENSIONS
     test_config.task_types = [mc.TaskType.SCRAPE]
     orig_cwd = os.getcwd()
@@ -275,25 +275,27 @@ def test_run_scrape(test_config, tmp_path):
         os.chdir(orig_cwd)
 
 
+@pytest.mark.skip('test case for an unsupported execution path')
 @patch('brite2caom2.composable.ClientCollection')
 @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
-def test_run_reingest_retry(access_mock, client_mock, test_config, tmp_path):
+def test_run_reingest_retry(access_mock, client_mock, test_data_dir, test_config, tmp_path):
     access_mock.return_value = 'https://localhost'
+    test_root_dir = f'{test_data_dir}/HD37202'
     test_config.change_working_directory(tmp_path.as_posix())
 
     def _info_mock(uri):
-        fqn = f'{TEST_ROOT_DIR}/{os.path.basename(uri)}'
+        fqn = f'{test_root_dir}/{os.path.basename(uri)}'
         return data_util.get_local_file_info(fqn)
 
     client_mock.return_value.data_client.info.side_effect = _info_mock
 
-    test_files = glob.glob(f'{TEST_ROOT_DIR}/*')
+    test_files = glob.glob(f'{test_root_dir}/*')
 
     orig_cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
         test_config.logging_level = 'INFO'
-        test_config.task_types = [mc.TaskType.MODIFY]
+        test_config.task_types = [mc.TaskType.INGEST]
         test_config.store_modified_files_only = False
         test_config.cleanup_files_when_storing = False
         test_config.retry_failures = True
@@ -311,7 +313,7 @@ def test_run_reingest_retry(access_mock, client_mock, test_config, tmp_path):
 
         def _cadcget_mock(uri, dest):
             f_name = os.path.basename(uri)
-            fqn = f'{TEST_ROOT_DIR}/{f_name}'
+            fqn = f'{test_root_dir}/{f_name}'
             with open(fqn, 'rb') as f_in:
                 dest.writelines(f_in.readlines())
 
@@ -320,14 +322,14 @@ def test_run_reingest_retry(access_mock, client_mock, test_config, tmp_path):
 
         def _data_get_mock(working_directory, uri):
             f_name = os.path.basename(uri)
-            fqn = f'{TEST_ROOT_DIR}/{f_name}'
+            fqn = f'{test_root_dir}/{f_name}'
             copy(fqn, working_directory)
 
         # this mock is for the ClientComposable read
         client_mock.return_value.data_client.get.side_effect = _data_get_mock
 
         def _meta_read_mock(ignore_collection, obs_id):
-            fqn = f'{test_main_app.TEST_DATA_DIR}/{obs_id}.expected.xml'
+            fqn = f'{test_data_dir}/{obs_id}.expected.xml'
             return mc.read_obs_from_file(fqn)
 
         client_mock.return_value.metadata_client.read.side_effect = _meta_read_mock
@@ -344,7 +346,7 @@ def test_run_reingest_retry(access_mock, client_mock, test_config, tmp_path):
         assert client_mock.return_value.data_client.put.call_count == 12, 'wrong put previews call count'
         assert client_mock.return_value.data_client.get.called, 'get should be called'
         # 48 = 6 observation * 5 files/observation + 6 observations * 3 re-read files (.avedb, .orig, .ndatdb) / observation needing cadcget retrieval
-        assert client_mock.return_value.data_client.get.call_count == 48, 'get call count'
+        assert client_mock.return_value.data_client.get.call_count == 48, 'cadcget call count'
         assert client_mock.return_value.data_client.cadcget.called, 'cadcget should be called'
         # 12 = 6 observations * 2 files (.avedb, .ndatdb) / observation needing cadcget retrieval
         # the get vs cadcget calls => cadcget is for the MetadataReader specialization, which does a

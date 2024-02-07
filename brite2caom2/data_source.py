@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -68,7 +67,7 @@
 #
 
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from os.path import basename
 
 from caom2pipe.data_source_composable import LocalFilesDataSource
@@ -138,7 +137,7 @@ class BriteLocalFilesDataSource(LocalFilesDataSource):
                 self._reporter.capture_success(
                     BriteLocalFilesDataSource._get_obs_id_from_fqn(entry),
                     basename(entry),
-                    datetime.utcnow().timestamp(),
+                    datetime.now(tz=timezone.utc).timestamp(),
                 )
             self._logger.debug('End clean_up.')
 
@@ -161,7 +160,7 @@ class BriteLocalFilesDataSource(LocalFilesDataSource):
                 self._reporter.capture_success(
                     BriteLocalFilesDataSource._get_obs_id_from_fqn(entry),
                     basename(entry),
-                    datetime.utcnow().timestamp(),
+                    datetime.now(tz=timezone.utc).timestamp(),
                 )
         for entry in remove_these:
             self._work.remove(entry)

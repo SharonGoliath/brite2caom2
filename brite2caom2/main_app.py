@@ -102,7 +102,7 @@ class BriteMapping(cc.TelescopeMapping):
         # mapping by @dbohlender
         # DB 26-10-22
         # set release date to the time the file is received at CADC
-        release_date = datetime.utcnow().isoformat()
+        release_date = datetime.now().isoformat()
         bp.set('Observation.metaRelease', release_date)
         bp.set('Observation.intent', 'science')
         bp.set('Observation.type', 'object')

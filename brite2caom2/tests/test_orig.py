@@ -65,6 +65,8 @@
 #
 # ***********************************************************************
 #
+from os import unlink
+from os.path import exists
 
 from brite2caom2.fits2caom2_augmentation import visit
 from brite2caom2.reader import BriteFileMetadataReader
@@ -81,6 +83,8 @@ def test_orig(clients_mock, test_data_dir, test_config):
     test_f_name = 'HD36486_65-Ori-VIII-2021_BAb_1_5_A.orig'
     expected_fqn = f'{test_data_dir}/orig/{test_f_name}.expected.xml'
     actual_fqn = expected_fqn.replace('expected', 'actual')
+    if exists(actual_fqn):
+        unlink(actual_fqn)
     expected = read_obs_from_file(expected_fqn)
     storage_name = BriteName(entry=f'{test_data_dir}/HD36486/{test_f_name}')
     metadata_reader = BriteFileMetadataReader()
